@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+# Author: Shane Reustle <www.shanereustle.com>
+
+import sys
+from time import time
+from pymongo.connection import Connection
+from pymongo.database import Database
+
+host = '127.0.0.1'
+port = 27017
+munin_name = 'replication_delay'
+
+def get_slave_delay():
+	mongo_conn = Connection(host, port)
+	repl_status = mongo_conn.admin.command('replSetGetStatus')
+	slave_delay = 0
+	
+	for member in repl_status['members']:
+		if member['state'] == 2:
+			slave_delay = int(time()) - member['optime'].time
+	
+	return slave_delay
+
+def do_data():
+	print munin_name + '.value ' + str( get_slave_delay() )
+
+def do_config():
+	print 'graph_title Secondary Replication Delay'
+	print 'graph_args --base 1000 -l 0'
+	print 'graph_vlabel delay (seconds)'
+	print 'graph_category mongodb'
+
+	print munin_name + ".label " + munin_name
+
+
+if __name__ == '__main__':
+	if len(sys.argv) > 1 and sys.argv[1] == 'config':
+		do_config()
+	else:
+		do_data()
+
